@@ -3,14 +3,15 @@ package ru.mifi.personalfinance.view;
 import ru.mifi.personalfinance.model.TransactionType;
 import ru.mifi.personalfinance.model.User;
 import ru.mifi.personalfinance.model.Wallet;
-import ru.mifi.personalfinance.service.FinanceManager;
+import ru.mifi.personalfinance.service.FinanceService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
 public class FinanceManagerView {
 
-    private final FinanceManager financeManager = new FinanceManager();
+    private final FinanceService financeService = new FinanceService();
     private final Scanner scanner = new Scanner(System.in);
     private User loggedInUser;
 
@@ -79,20 +80,22 @@ public class FinanceManagerView {
         System.out.print("Enter password: ");
         String password = scanner.nextLine();
 
-        if (financeManager.getUsers().containsKey(userId)) {
-            System.out.println("Error: User ID already exists. Please use a different ID.");
+        if (financeService.getUsers().containsKey(username)) {
+            System.out.println("Error: Username already exists. Please use a different username.");
             return;
         }
 
         User user = User.builder()
-                .userId(userId)
+                .id(userId)
                 .username(username)
                 .password(password)
+                .wallets(new HashMap<>()) // Инициализируем пустой Map
                 .build();
 
-        financeManager.addUser(user);
+        financeService.addUser(user);
         System.out.println("User created successfully: " + username);
     }
+
 
     private void loginUser() {
         System.out.println("\nLogin:");
@@ -101,7 +104,7 @@ public class FinanceManagerView {
         System.out.print("Enter password: ");
         String password = scanner.nextLine();
 
-        loggedInUser = financeManager.getUsers().values().stream()
+        loggedInUser = financeService.getUsers().values().stream()
                 .filter(user -> user.getUsername().equals(username) && user.getPassword().equals(password))
                 .findFirst()
                 .orElse(null);
@@ -114,32 +117,38 @@ public class FinanceManagerView {
     }
 
     private void createWallet() {
+        if (loggedInUser == null) {
+            System.out.println("Error: You must be logged in to create a wallet.");
+            return;
+        }
+
         System.out.println("\nCreate Wallet:");
         int walletId = getValidatedInteger("Enter wallet ID: ");
         System.out.print("Enter wallet name: ");
         String name = scanner.nextLine();
         double balance = getValidatedDouble("Enter initial balance: ");
 
-        if (financeManager.getWallets().containsKey(walletId)) {
-            System.out.println("Error: Wallet ID already exists. Please use a different ID.");
+        if (loggedInUser.getWallets().containsKey(name)) {
+            System.out.println("Error: Wallet with this name already exists.");
             return;
         }
 
         Wallet wallet = Wallet.builder()
-                .walletId(walletId)
+                .id(walletId)
                 .name(name)
                 .balance(balance)
                 .transactions(new ArrayList<>())
+                .budgetByCategory(new HashMap<>())
                 .build();
 
-        financeManager.addWallet(wallet);
+        financeService.addWallet(loggedInUser, wallet); // Привязываем кошелек к текущему пользователю
         System.out.println("Wallet created successfully: " + name);
     }
 
     private void addTransaction() {
         System.out.println("\nAdd Transaction:");
         int walletId = getValidatedInteger("Enter wallet ID: ");
-        Wallet wallet = financeManager.getWallets().get(walletId);
+        Wallet wallet = financeService.getWallets().get(walletId);
 
         if (wallet == null) {
             System.out.println("Error: Wallet not found.");
@@ -163,28 +172,28 @@ public class FinanceManagerView {
         }
 
         switch (type) {
-            case INCOME -> financeManager.addIncome(wallet, amount);
-            case EXPENSE -> financeManager.addExpense(wallet, amount);
+            case INCOME -> financeService.addIncome(wallet, amount);
+            case EXPENSE -> financeService.addExpense(wallet, amount);
         }
         System.out.println(type + " transaction of " + amount + " added successfully.");
     }
 
     private void showWallets() {
         System.out.println("\nWallets:");
-        if (financeManager.getWallets().isEmpty()) {
+        if (financeService.getWallets().isEmpty()) {
             System.out.println("No wallets found.");
             return;
         }
 
-        financeManager.getWallets().values().forEach(wallet -> {
-            System.out.println("Wallet ID: " + wallet.getWalletId() +
+        financeService.getWallets().values().forEach(wallet -> {
+            System.out.println("Wallet ID: " + wallet.getId() +
                     ", Name: " + wallet.getName() +
                     ", Balance: " + wallet.getBalance());
             if (wallet.getTransactions().isEmpty()) {
                 System.out.println("  No transactions yet.");
             } else {
                 wallet.getTransactions().forEach(transaction -> {
-                    System.out.println("  Transaction ID: " + transaction.getTransactionId() +
+                    System.out.println("  Transaction ID: " + transaction.getId() +
                             ", Type: " + transaction.getType() +
                             ", Amount: " + transaction.getAmount());
                 });

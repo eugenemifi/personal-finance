@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
 import java.util.UUID;
 
 @Data
@@ -13,9 +12,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Transaction {
-    private UUID transactionId;
-    private double amount;
+    private UUID id;
     private TransactionType type;
-    private Date date;
+    private String category;
+    private double amount;
 }
-

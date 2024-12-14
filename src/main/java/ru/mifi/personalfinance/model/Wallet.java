@@ -7,14 +7,16 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Wallet {
-    private int walletId;
+    private Integer id;
     private String name;
     private double balance;
-    private List<Transaction> transactions;
+    private List<Transaction> transactions; // Список транзакций
+    private Map<String, Double> budgetByCategory; // Бюджет по категориям
 }

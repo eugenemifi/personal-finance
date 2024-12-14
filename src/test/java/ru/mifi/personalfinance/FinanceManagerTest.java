@@ -2,143 +2,127 @@ package ru.mifi.personalfinance;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.mifi.personalfinance.model.Transaction;
 import ru.mifi.personalfinance.model.TransactionType;
 import ru.mifi.personalfinance.model.User;
 import ru.mifi.personalfinance.model.Wallet;
-import ru.mifi.personalfinance.service.FinanceManager;
+import ru.mifi.personalfinance.service.FinanceService;
 
 import java.util.ArrayList;
-import java.util.UUID;
+import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class FinanceManagerTest {
-    private FinanceManager financeManager;
+
+    private FinanceService financeService;
     private User user;
     private Wallet wallet;
 
     @BeforeEach
     void setUp() {
-        financeManager = new FinanceManager();
+        financeService = new FinanceService();
 
         // Создание тестового пользователя
         user = User.builder()
-                .userId(1)
+                .id(1)
                 .username("testuser")
                 .password("password123")
+                .wallets(new HashMap<>())
                 .build();
+        financeService.addUser(user);
 
         // Создание тестового кошелька
         wallet = Wallet.builder()
-                .walletId(1)
+                .id(100)
                 .name("Test Wallet")
                 .balance(1000.0)
                 .transactions(new ArrayList<>())
+                .budgetByCategory(new HashMap<>())
                 .build();
+        user.getWallets().put(wallet.getName(), wallet);
     }
 
     @Test
-    void givenUser_whenAddUser_thenUserIsAdded() {
+    void givenNewUser_whenAddUser_thenUserIsAddedSuccessfully() {
         // Given
-        assertEquals(0, financeManager.getUsers().size());
+        User newUser = User.builder()
+                .id(2)
+                .username("newuser")
+                .password("password123")
+                .wallets(new HashMap<>())
+                .build();
 
         // When
-        financeManager.addUser(user);
+        financeService.addUser(newUser);
 
         // Then
-        assertEquals(1, financeManager.getUsers().size());
-        assertEquals(user, financeManager.getUsers().get(1));
+        assertTrue(financeService.getUsers().containsKey("newuser"));
     }
 
     @Test
-    void givenWallet_whenAddWallet_thenWalletIsAdded() {
-        // Given
-        assertEquals(0, financeManager.getWallets().size());
-
-        // When
-        financeManager.addWallet(wallet);
-
-        // Then
-        assertEquals(1, financeManager.getWallets().size());
-        assertEquals(wallet, financeManager.getWallets().get(1));
+    void givenExistingUser_whenAddUser_thenThrowsException() {
+        // When & Then
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+                financeService.addUser(user));
+        assertEquals("User already exists!", exception.getMessage());
     }
 
     @Test
-    void givenWallet_whenAddExpense_thenTransactionIsAddedAndBalanceUpdated() {
+    void givenValidWallet_whenAddIncome_thenBalanceAndTransactionsAreUpdated() {
         // Given
-        financeManager.addWallet(wallet);
-        double initialBalance = wallet.getBalance();
-        double expenseAmount = 200.0;
-
-        // When
-        financeManager.addExpense(wallet, expenseAmount);
-
-        // Then
-        assertEquals(initialBalance - expenseAmount, wallet.getBalance());
-        assertEquals(1, wallet.getTransactions().size());
-
-        Transaction transaction = wallet.getTransactions().get(0);
-        assertEquals(expenseAmount, transaction.getAmount());
-        assertEquals(TransactionType.EXPENSE, transaction.getType());
-    }
-
-    @Test
-    void givenWallet_whenAddIncome_thenTransactionIsAddedAndBalanceUpdated() {
-        // Given
-        financeManager.addWallet(wallet);
-        double initialBalance = wallet.getBalance();
         double incomeAmount = 500.0;
 
         // When
-        financeManager.addIncome(wallet, incomeAmount);
+        financeService.addIncome(wallet, incomeAmount);
 
         // Then
-        assertEquals(initialBalance + incomeAmount, wallet.getBalance());
+        assertEquals(1500.0, wallet.getBalance());
         assertEquals(1, wallet.getTransactions().size());
-
-        Transaction transaction = wallet.getTransactions().get(0);
-        assertEquals(incomeAmount, transaction.getAmount());
-        assertEquals(TransactionType.INCOME, transaction.getType());
+        assertEquals(incomeAmount, wallet.getTransactions().get(0).getAmount());
+        assertEquals(TransactionType.INCOME, wallet.getTransactions().get(0).getType());
     }
 
     @Test
-    void givenWallet_whenAddMultipleTransactions_thenAllAreHandledCorrectly() {
+    void givenValidWallet_whenAddExpense_thenBalanceAndTransactionsAreUpdated() {
         // Given
-        financeManager.addWallet(wallet);
+        double expenseAmount = 300.0;
 
         // When
-        financeManager.addExpense(wallet, 300.0);
-        financeManager.addIncome(wallet, 500.0);
+        financeService.addExpense(wallet, expenseAmount);
 
         // Then
-        assertEquals(2, wallet.getTransactions().size());
-
-        Transaction firstTransaction = wallet.getTransactions().get(0);
-        assertEquals(300.0, firstTransaction.getAmount());
-        assertEquals(TransactionType.EXPENSE, firstTransaction.getType());
-
-        Transaction secondTransaction = wallet.getTransactions().get(1);
-        assertEquals(500.0, secondTransaction.getAmount());
-        assertEquals(TransactionType.INCOME, secondTransaction.getType());
-
-        assertEquals(1200.0, wallet.getBalance()); // 1000 - 300 + 500
+        assertEquals(700.0, wallet.getBalance());
+        assertEquals(1, wallet.getTransactions().size());
+        assertEquals(expenseAmount, wallet.getTransactions().get(0).getAmount());
+        assertEquals(TransactionType.EXPENSE, wallet.getTransactions().get(0).getType());
     }
 
     @Test
-    void givenUnsupportedTransactionType_whenAddTransaction_thenThrowsException() {
+    void givenWalletWithMultipleTransactions_whenCalculateTotals_thenTotalsAreCorrect() {
         // Given
-        Transaction invalidTransaction = Transaction.builder()
-                .transactionId(UUID.randomUUID())
-                .amount(100.0)
-                .type(null)
-                .build();
+        financeService.addIncome(wallet, 1000.0);
+        financeService.addExpense(wallet, 200.0);
+        financeService.addExpense(wallet, 300.0);
 
-        // When & Then
-        Exception exception = assertThrows(IllegalArgumentException.class, () ->
-                financeManager.addTransaction(wallet, invalidTransaction)
-        );
+        // When
+        double totalIncome = financeService.getWallets()
+                .get(wallet.getId())
+                .getTransactions()
+                .stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .mapToDouble(t -> t.getAmount())
+                .sum();
 
-        assertEquals("Unsupported transaction type", exception.getMessage());
+        double totalExpense = financeService.getWallets()
+                .get(wallet.getId())
+                .getTransactions()
+                .stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .mapToDouble(t -> t.getAmount())
+                .sum();
+
+        // Then
+        assertEquals(1000.0, totalIncome);
+        assertEquals(500.0, totalExpense);
     }
 }
