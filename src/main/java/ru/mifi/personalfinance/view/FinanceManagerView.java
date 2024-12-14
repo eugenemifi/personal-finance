@@ -1,6 +1,5 @@
 package ru.mifi.personalfinance.view;
 
-
 import ru.mifi.personalfinance.model.TransactionType;
 import ru.mifi.personalfinance.model.User;
 import ru.mifi.personalfinance.model.Wallet;
@@ -13,46 +12,77 @@ public class FinanceManagerView {
 
     private final FinanceManager financeManager = new FinanceManager();
     private final Scanner scanner = new Scanner(System.in);
+    private User loggedInUser;
 
-
+    public static void main(String[] args) {
+        FinanceManagerView app = new FinanceManagerView();
+        app.run();
+    }
 
     public void run() {
         System.out.println("Welcome to Personal Finance Manager!");
+
         while (true) {
-            showMenu();
-            String choice = scanner.nextLine();
-            switch (choice) {
-                case "1" -> createUser();
-                case "2" -> createWallet();
-                case "3" -> addTransaction();
-                case "4" -> showWallets();
-                case "5" -> {
-                    System.out.println("Exiting application. Goodbye!");
-                    return;
-                }
-                default -> System.out.println("Invalid choice. Please try again.");
+            if (loggedInUser == null) {
+                showLoginMenu();
+            } else {
+                showMainMenu();
             }
         }
     }
 
-    private void showMenu() {
-        System.out.println("\nMain Menu:");
-        System.out.println("1. Create User");
-        System.out.println("2. Create Wallet");
-        System.out.println("3. Add Transaction (Income or Expense)");
-        System.out.println("4. Show Wallets");
-        System.out.println("5. Exit");
+    private void showLoginMenu() {
+        System.out.println("\nLogin Menu:");
+        System.out.println("1. Login");
+        System.out.println("2. Create User");
+        System.out.println("3. Exit");
         System.out.print("Enter your choice: ");
+
+        String choice = scanner.nextLine();
+        switch (choice) {
+            case "1" -> loginUser();
+            case "2" -> createUser();
+            case "3" -> {
+                System.out.println("Exiting application. Goodbye!");
+                System.exit(0);
+            }
+            default -> System.out.println("Invalid choice. Please try again.");
+        }
+    }
+
+    private void showMainMenu() {
+        System.out.println("\nMain Menu:");
+        System.out.println("1. Create Wallet");
+        System.out.println("2. Add Transaction (Income or Expense)");
+        System.out.println("3. Show Wallets");
+        System.out.println("4. Logout");
+        System.out.print("Enter your choice: ");
+
+        String choice = scanner.nextLine();
+        switch (choice) {
+            case "1" -> createWallet();
+            case "2" -> addTransaction();
+            case "3" -> showWallets();
+            case "4" -> {
+                loggedInUser = null;
+                System.out.println("Logged out successfully.");
+            }
+            default -> System.out.println("Invalid choice. Please try again.");
+        }
     }
 
     private void createUser() {
         System.out.println("\nCreate User:");
-        System.out.print("Enter user ID: ");
-        int userId = Integer.parseInt(scanner.nextLine());
+        int userId = getValidatedInteger("Enter user ID: ");
         System.out.print("Enter username: ");
         String username = scanner.nextLine();
         System.out.print("Enter password: ");
         String password = scanner.nextLine();
+
+        if (financeManager.getUsers().containsKey(userId)) {
+            System.out.println("Error: User ID already exists. Please use a different ID.");
+            return;
+        }
 
         User user = User.builder()
                 .userId(userId)
@@ -64,14 +94,36 @@ public class FinanceManagerView {
         System.out.println("User created successfully: " + username);
     }
 
+    private void loginUser() {
+        System.out.println("\nLogin:");
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        loggedInUser = financeManager.getUsers().values().stream()
+                .filter(user -> user.getUsername().equals(username) && user.getPassword().equals(password))
+                .findFirst()
+                .orElse(null);
+
+        if (loggedInUser != null) {
+            System.out.println("Login successful. Welcome, " + loggedInUser.getUsername() + "!");
+        } else {
+            System.out.println("Invalid username or password. Please try again.");
+        }
+    }
+
     private void createWallet() {
         System.out.println("\nCreate Wallet:");
-        System.out.print("Enter wallet ID: ");
-        int walletId = Integer.parseInt(scanner.nextLine());
+        int walletId = getValidatedInteger("Enter wallet ID: ");
         System.out.print("Enter wallet name: ");
         String name = scanner.nextLine();
-        System.out.print("Enter initial balance: ");
-        double balance = Double.parseDouble(scanner.nextLine());
+        double balance = getValidatedDouble("Enter initial balance: ");
+
+        if (financeManager.getWallets().containsKey(walletId)) {
+            System.out.println("Error: Wallet ID already exists. Please use a different ID.");
+            return;
+        }
 
         Wallet wallet = Wallet.builder()
                 .walletId(walletId)
@@ -86,12 +138,11 @@ public class FinanceManagerView {
 
     private void addTransaction() {
         System.out.println("\nAdd Transaction:");
-        System.out.print("Enter wallet ID: ");
-        int walletId = Integer.parseInt(scanner.nextLine());
+        int walletId = getValidatedInteger("Enter wallet ID: ");
         Wallet wallet = financeManager.getWallets().get(walletId);
 
         if (wallet == null) {
-            System.out.println("Wallet not found.");
+            System.out.println("Error: Wallet not found.");
             return;
         }
 
@@ -101,12 +152,15 @@ public class FinanceManagerView {
         try {
             type = TransactionType.valueOf(typeInput.toUpperCase());
         } catch (IllegalArgumentException e) {
-            System.out.println("Invalid transaction type. Please try again.");
+            System.out.println("Error: Invalid transaction type. Please try again.");
             return;
         }
 
-        System.out.print("Enter amount: ");
-        double amount = Double.parseDouble(scanner.nextLine());
+        double amount = getValidatedDouble("Enter amount: ");
+        if (amount <= 0) {
+            System.out.println("Error: Amount must be greater than zero.");
+            return;
+        }
 
         switch (type) {
             case INCOME -> financeManager.addIncome(wallet, amount);
@@ -136,5 +190,29 @@ public class FinanceManagerView {
                 });
             }
         });
+    }
+
+    // Метод для валидации целых чисел
+    private int getValidatedInteger(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                return Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Please enter a valid integer.");
+            }
+        }
+    }
+
+    // Метод для валидации чисел с плавающей точкой
+    private double getValidatedDouble(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                return Double.parseDouble(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Please enter a valid number.");
+            }
+        }
     }
 }
