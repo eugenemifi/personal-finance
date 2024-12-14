@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+group = 'ru.mifi'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation platform("org.junit:junit-bom:$junitVersion")
+        testImplementation "org.junit.jupiter:junit-jupiter"
+
+        compileOnly "org.projectlombok:lombok:$lombokVersion"
+        annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+        testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+        testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
