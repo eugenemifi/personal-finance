@@ -1,0 +1,17 @@
+@startuml
+package "Application" {
+  [FinanceManager]
+  [User]
+  [Wallet]
+  [Transaction]
+  [Notifier]
+  [DataHandler]
+  [Validator]
+}
+[FinanceManager] --> [User]
+[FinanceManager] --> [Wallet]
+[Wallet] --> [Transaction]
+[FinanceManager] --> [Notifier]
+[FinanceManager] --> [DataHandler]
+[FinanceManager] --> [Validator]
+@enduml

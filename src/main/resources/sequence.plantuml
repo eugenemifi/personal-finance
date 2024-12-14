@@ -1,0 +1,15 @@
+@startuml
+actor User
+participant "FinanceManager" as FM
+participant "Wallet" as W
+participant "Transaction" as T
+
+User -> FM: addExpense(amount, walletId)
+FM -> W: getWallet(walletId)
+W -> FM: Wallet instance
+FM -> T: createTransaction(amount, "EXPENSE")
+T --> FM: Transaction instance
+FM -> W: addTransaction(transaction)
+W --> FM: updated Wallet
+FM --> User: Success message
+@enduml

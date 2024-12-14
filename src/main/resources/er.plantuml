@@ -1,0 +1,23 @@
+@startuml
+entity "User" {
+  * userId : int
+  * username : String
+  * password : String
+}
+
+entity "Wallet" {
+  * walletId : int
+  * name : String
+  * balance : double
+}
+
+entity "Transaction" {
+  * transactionId : int
+  * amount : double
+  * type : String
+  * date : Date
+}
+
+User ||--o{ Wallet : owns
+Wallet ||--o{ Transaction : contains
+@enduml
